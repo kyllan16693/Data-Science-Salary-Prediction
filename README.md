@@ -11,9 +11,3 @@ Sourced from [https://www.kaggle.com/datasets/arnabchaki/data-science-salaries-2
 ## Process Diagram
 
 ![Process Diagram](./process-diagram/processdiagram.drawio.svg)
-
-## Data Pre-Processing
-
-
-
-
