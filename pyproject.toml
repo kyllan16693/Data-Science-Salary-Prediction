@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "altair>=5.5.0",
     "ipykernel>=6.29.5",
     "matplotlib>=3.10.1",
     "missingno>=0.5.2",
@@ -12,5 +13,6 @@ dependencies = [
     "scikit-learn>=1.6.1",
     "seaborn>=0.13.2",
     "streamlit>=1.44.1",
+    "watchdog>=6.0.0",
     "xgboost>=3.0.0",
 ]
