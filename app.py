@@ -489,39 +489,3 @@ with tabs[1]:
         <p>Confidence intervals are calculated using <strong>bootstrap resampling</strong>, where the model is retrained multiple times on resampled data to capture prediction uncertainty.</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Feature information card
-    st.markdown("""
-    <div class="card" style="background-color: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);">
-        <h3 style="color: #00A651; margin-bottom: 1rem;">📊 Feature Information</h3>
-        
-        <div style="margin-bottom: 1rem;">
-            <h4 style="color: #007840;">Experience Levels:</h4>
-            <ul>
-                <li><strong>Entry-level (EN):</strong> Junior positions requiring less than 2 years of experience</li>
-                <li><strong>Mid-level (MI):</strong> Positions requiring 2-5 years of experience</li>
-                <li><strong>Senior (SE):</strong> Positions requiring 5+ years of experience</li>
-                <li><strong>Executive (EX):</strong> Leadership positions like Director, CTO, etc.</li>
-            </ul>
-        </div>
-        
-        <div style="margin-bottom: 1rem;">
-            <h4 style="color: #007840;">Employment Types:</h4>
-            <ul>
-                <li><strong>Full-time (FT):</strong> Standard full-time positions</li>
-                <li><strong>Part-time (PT):</strong> Part-time roles</li>
-                <li><strong>Contract (CT):</strong> Fixed-term contract positions</li>
-                <li><strong>Freelance (FL):</strong> Independent contractor roles</li>
-            </ul>
-        </div>
-        
-        <div>
-            <h4 style="color: #007840;">Company Sizes:</h4>
-            <ul>
-                <li><strong>Small (S):</strong> Less than 50 employees</li>
-                <li><strong>Medium (M):</strong> 50-250 employees</li>
-                <li><strong>Large (L):</strong> More than 250 employees</li>
-            </ul>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
