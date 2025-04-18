@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "altair>=5.5.0",
+    "currencyconverter>=0.18.5",
     "ipykernel>=6.29.5",
     "matplotlib>=3.10.1",
     "missingno>=0.5.2",
