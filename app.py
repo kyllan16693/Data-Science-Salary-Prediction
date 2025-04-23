@@ -46,25 +46,25 @@ selected_currency = st.sidebar.selectbox("Display Salary In:", available_currenc
 if selected_currency != st.session_state.currency:
     st.session_state.currency = selected_currency
 
-# Bootstrap sample control
-st.sidebar.markdown('<h3 style="color: #00A651; font-size: 1.2rem;">📊 Model Settings</h3>', unsafe_allow_html=True)
-n_bootstrap = st.sidebar.slider(
-    "Number of Bootstrap Samples for CI:", 
-    min_value=5, 
-    max_value=100, 
-    value=st.session_state.n_bootstrap,
-    help="Higher values give more accurate confidence intervals but take longer to compute."
-)
+# Bootstrap sample control - commented out as per request and fixed at 10
+#st.sidebar.markdown('<h3 style="color: #00A651; font-size: 1.2rem;">📊 Model Settings</h3>', unsafe_allow_html=True)
+# n_bootstrap = st.sidebar.slider(
+#     "Number of Bootstrap Samples for CI:", 
+#     min_value=5, 
+#     max_value=100, 
+#     value=st.session_state.n_bootstrap,
+#     help="Higher values give more accurate confidence intervals but take longer to compute."
+# )
 
-st.sidebar.markdown("""
-<div style="background-color: #F0FAF5; padding: 1rem; border-radius: 5px; border-left: 3px solid #00A651; margin-top: 1rem;">
-    <p style="margin: 0; color: #007840;">This app predicts data science salaries based on various job factors using XGBoost regression with bootstrap confidence intervals.</p>
-</div>
-""", unsafe_allow_html=True)
+#st.sidebar.markdown("""
+#<div style="background-color: #F0FAF5; padding: 1rem; border-radius: 5px; border-left: 3px solid #00A651; margin-top: 1rem;">
+#    <p style="margin: 0; color: #007840;">This app predicts data science salaries based on various job factors using XGBoost regression with bootstrap confidence intervals.</p>
+#</div>
+#""", unsafe_allow_html=True)
 
-# Update bootstrap samples in session state if changed
-if n_bootstrap != st.session_state.n_bootstrap:
-    st.session_state.n_bootstrap = n_bootstrap
+# Update bootstrap samples in session state if changed - commented out and fixed at 10
+# if n_bootstrap != st.session_state.n_bootstrap:
+#     st.session_state.n_bootstrap = n_bootstrap
 
 # Function to convert USD to selected currency
 def convert_currency(amount_usd, target_currency='USD'):
@@ -239,8 +239,8 @@ def make_prediction(selected_job_title, selected_experience, selected_employment
     input_data['company_location'] = company_location_idx
     input_data['remote_ratio'] = remote_ratio
     
-    # Make prediction with bootstrap
-    median_pred, lower_bound, upper_bound = bootstrap_predictions(model, input_data, n_bootstrap=st.session_state.n_bootstrap)
+    # Make prediction with bootstrap (using fixed value of 10 instead of session state)
+    median_pred, lower_bound, upper_bound = bootstrap_predictions(model, input_data, n_bootstrap=10)
     
     # Store in session state
     st.session_state.median_pred = median_pred
@@ -252,7 +252,7 @@ def make_prediction(selected_job_title, selected_experience, selected_employment
 def bootstrap_predictions(model, input_data, n_bootstrap=10):
     """
     Generate bootstrap predictions for confidence intervals.
-    Using the user-specified number of bootstrap samples.
+    Using a fixed number of bootstrap samples (default is 10).
     """
     df = df_encoded.copy()
     bootstrap_preds = np.zeros(n_bootstrap)
