@@ -34,6 +34,12 @@ if 'prediction_made' not in st.session_state:
     st.session_state.currency = 'USD'  # Default currency
     st.session_state.n_bootstrap = 10  # Default number of bootstraps
 
+if 'salary_freq' not in st.session_state:
+    st.session_state.salary_freq = 'Annual'
+
+if 'auto_refresh' not in st.session_state:
+    st.session_state.auto_refresh = False
+
 # --- SIDEBAR ---
 st.sidebar.markdown('<h2 style="color: #00A651;">⚙️ Settings</h2>', unsafe_allow_html=True)
 
@@ -45,6 +51,26 @@ selected_currency = st.sidebar.selectbox("Display Salary In:", available_currenc
 # Update currency in session state if changed
 if selected_currency != st.session_state.currency:
     st.session_state.currency = selected_currency
+
+# Output settings section
+st.sidebar.markdown(
+  '<h3 style="color: #00A651; font-size: 1.2rem;">🔄 Output Settings</h3>',
+  unsafe_allow_html=True
+)
+
+salary_freq_options = ['Annual','Monthly','Hourly']
+selected_salary_freq = st.sidebar.selectbox(
+    "Salary Frequency:", 
+    salary_freq_options,
+    index=salary_freq_options.index(st.session_state.salary_freq),
+    key='salary_freq'
+)
+
+auto_refresh = st.sidebar.checkbox(
+    "Auto‑refresh on input change",
+    value=st.session_state.auto_refresh,
+    key='auto_refresh'
+)
 
 # Bootstrap sample control - commented out as per request and fixed at 10
 #st.sidebar.markdown('<h3 style="color: #00A651; font-size: 1.2rem;">📊 Model Settings</h3>', unsafe_allow_html=True)
@@ -240,12 +266,19 @@ def make_prediction(selected_job_title, selected_experience, selected_employment
     input_data['remote_ratio'] = remote_ratio
     
     # Make prediction with bootstrap (using fixed value of 10 instead of session state)
-    median_pred, lower_bound, upper_bound = bootstrap_predictions(model, input_data, n_bootstrap=10)
-    
-    # Store in session state
-    st.session_state.median_pred = median_pred
-    st.session_state.lower_bound = lower_bound
-    st.session_state.upper_bound = upper_bound
+    median_pred, lower_bound, upper_bound = get_cached_prediction(
+        selected_job_title,
+        selected_experience,
+        selected_employment,
+        employee_residence_idx,
+        company_location_idx,
+        selected_company_size,
+        remote_ratio,
+        st.session_state.n_bootstrap
+    )
+    st.session_state.median_pred  = median_pred
+    st.session_state.lower_bound  = lower_bound
+    st.session_state.upper_bound  = upper_bound
     st.session_state.prediction_made = True
 
 # Bootstrap predictions function
@@ -283,44 +316,98 @@ def bootstrap_predictions(model, input_data, n_bootstrap=10):
     upper_bound = np.percentile(bootstrap_preds, 97.5)
     return median_pred, lower_bound, upper_bound
 
+@st.cache_data(show_spinner=False)
+def get_cached_prediction(
+    job_title, experience, employment,
+    emp_res_idx, comp_loc_idx, company_size,
+    remote_ratio, n_bootstrap
+):
+    # rebuild a single‐row DataFrame identically to make_prediction
+    input_data = pd.DataFrame(columns=features, data=np.zeros((1, len(features))))
+    input_data[job_title_map[job_title]]        = 1
+    input_data[exp_level_map[experience]]       = 1
+    input_data[emp_type_map[employment]]        = 1
+    input_data[company_size_map[company_size]]  = 1
+    input_data['employee_residence']            = emp_res_idx
+    input_data['company_location']              = comp_loc_idx
+    input_data['remote_ratio']                  = remote_ratio
+
+    return bootstrap_predictions(
+      model, input_data, n_bootstrap=n_bootstrap
+    )
+
 # --- TABS ---
 tabs = st.tabs(["Prediction", "About/Extra"])
 
 # --- PREDICTION TAB ---
 with tabs[0]:
+    # wrap styling container if you like
     st.markdown('<div class="stForm">', unsafe_allow_html=True)
-    with st.form("prediction_form", clear_on_submit=False):
-        st.markdown('<h3 style="color: #00A651; text-align: center; margin-bottom: 1.5rem;">Job Details</h3>', unsafe_allow_html=True)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            selected_job_title = st.selectbox("Job Title", job_title_names, index=st.session_state.default_job_title_index)
-            selected_experience = st.selectbox("Experience Level", exp_level_names, index=st.session_state.default_experience_index)
-            selected_employment = st.selectbox("Employment Type", emp_type_names, index=st.session_state.default_employment_index)
-            
-            # Use select_slider with custom formatting function for remote work
-            remote_ratio = st.select_slider(
-                "Remote Work Percentage",
-                options=remote_ratio_values,
-                value=st.session_state.default_remote_ratio,
-                format_func=remote_ratio_format
+
+    # Two columns of inputs
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_job_title      = st.selectbox(
+            "Job Title", job_title_names,
+            index=st.session_state.default_job_title_index,
+            key='job_title'
+        )
+        selected_experience     = st.selectbox(
+            "Experience Level", exp_level_names,
+            index=st.session_state.default_experience_index,
+            key='experience'
+        )
+        selected_employment     = st.selectbox(
+            "Employment Type", emp_type_names,
+            index=st.session_state.default_employment_index,
+            key='employment'
+        )
+        remote_ratio = st.select_slider(
+            "Remote Work Percentage",
+            options=remote_ratio_values,
+            value=st.session_state.default_remote_ratio,
+            format_func=remote_ratio_format,
+            key='remote_ratio'
+        )
+
+    with col2:
+        selected_employee_residence = st.selectbox(
+            "Employee Residence Country",
+            employee_country_names,
+            index=employee_country_names.index("United States"),
+            key='employee_residence'
+        )
+        selected_company_location = st.selectbox(
+            "Company Location Country",
+            company_country_names,
+            index=company_country_names.index("United States"),
+            key='company_location'
+        )
+        selected_company_size = st.selectbox(
+            "Company Size", company_size_names,
+            index=st.session_state.default_company_size_index,
+            key='company_size'
+        )
+
+    # Trigger prediction
+    if st.session_state.auto_refresh:
+        make_prediction(
+            selected_job_title, selected_experience,
+            selected_employment, selected_employee_residence,
+            selected_company_location, selected_company_size,
+            remote_ratio
+        )
+    else:
+        st.markdown('<div style="text-align:center; margin:1rem 0;">', unsafe_allow_html=True)
+        if st.button("📊 Predict Salary", key='predict_button'):
+            make_prediction(
+                selected_job_title, selected_experience,
+                selected_employment, selected_employee_residence,
+                selected_company_location, selected_company_size,
+                remote_ratio
             )
-                
-        with col2:
-            # Use country names for display
-            selected_employee_residence = st.selectbox("Employee Residence Country", employee_country_names, index=employee_country_names.index("United States"))
-            selected_company_location = st.selectbox("Company Location Country", company_country_names, index=company_country_names.index("United States"))
-            selected_company_size = st.selectbox("Company Size", company_size_names, index=st.session_state.default_company_size_index)
-        
-        st.markdown('<div style="text-align: center; margin-top: 1.5rem;">', unsafe_allow_html=True)
-        submitted = st.form_submit_button("📊 Predict Salary")
         st.markdown('</div>', unsafe_allow_html=True)
-        
-        if submitted:
-            # Use the slider value directly
-            make_prediction(selected_job_title, selected_experience, selected_employment,
-                         selected_employee_residence, selected_company_location, selected_company_size,
-                         remote_ratio)
+
     st.markdown('</div>', unsafe_allow_html=True)
     
     # Auto-predict on startup if no prediction has been made yet
@@ -341,21 +428,49 @@ with tabs[0]:
     
     # Display results if prediction was made
     if st.session_state.prediction_made:
-        # Convert predictions to selected currency
+        # Raw from session
         median_pred = st.session_state.median_pred
-        lower_bound = st.session_state.lower_bound
-        upper_bound = st.session_state.upper_bound
-        
-        # Convert to selected currency
-        median_converted, currency_symbol = convert_currency(median_pred, st.session_state.currency)
-        lower_converted, _ = convert_currency(lower_bound, st.session_state.currency)
-        upper_converted, _ = convert_currency(upper_bound, st.session_state.currency)
-        
-        # Display currency info
+        lb_         = st.session_state.lower_bound
+        ub_         = st.session_state.upper_bound
+
+        # 1) currency conversion
+        med_conv, curr_sym = convert_currency(
+            median_pred, st.session_state.currency
+        )
+        lb_conv, _ = convert_currency(lb_, st.session_state.currency)
+        ub_conv, _ = convert_currency(ub_, st.session_state.currency)
+
+        # 2) frequency conversion
+        freq_factor = {
+            'Annual': 1,
+            'Monthly': 1/12,
+            'Hourly': 1/2080
+        }[st.session_state.salary_freq]
+
+        suffix_map = {
+            'Annual': 'per year',
+            'Monthly': 'per month',
+            'Hourly': 'per hour'
+        }
+        suffix = suffix_map[st.session_state.salary_freq]
+
+        median_disp = med_conv * freq_factor
+        lb_disp     = lb_conv  * freq_factor
+        ub_disp     = ub_conv  * freq_factor
+
+        # now build your interval width / marker exactly as before, but
+        # replace median_converted → median_disp, etc. and *add* {suffix}
+        interval_width    = ub_disp - lb_disp
+        median_value      = median_disp
+        relative_width    = min(95, max(30, (interval_width/median_value)*100))
+        relative_position = ((median_disp - lb_disp)/(ub_disp - lb_disp))*100
+
+        # Display currency & frequency info in one place
         st.markdown(f"""
         <div style="background-color: #F0FAF5; border-left: 4px solid #00A651; padding: 1rem; margin: 1.5rem 0; border-radius: 4px;">
             <p style="margin: 0; color: #007840; font-weight: 500;">
-                <span style="font-size: 1.1rem;">💱</span> Displaying salary in <span style="font-weight: bold;">{st.session_state.currency}</span>
+                <span style="font-size: 1.1rem;">💱</span>
+                Displaying salary in <strong>{st.session_state.currency}</strong> {suffix}
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -363,12 +478,12 @@ with tabs[0]:
         st.markdown('<h2 style="color: #00A651; text-align: center;">Salary Prediction</h2>', unsafe_allow_html=True)
         
         # Calculate interval width as percentage of median for visual scaling
-        interval_width = upper_converted - lower_converted
-        median_value = median_converted
+        interval_width = ub_disp - lb_disp
+        median_value = median_disp
         relative_width_pct = min(95, max(30, (interval_width / median_value) * 100))
         
         # Calculate position for the marker within the interval
-        relative_position = ((median_converted - lower_converted) / (upper_converted - lower_converted)) * 100
+        relative_position = ((median_disp - lb_disp) / (ub_disp - lb_disp)) * 100
         
         # Determine the visual width of the interval bar
         visual_width = f"{relative_width_pct}%"
@@ -380,7 +495,9 @@ with tabs[0]:
         <div class="prediction-container" style="padding: 0 5%; margin: 0 auto; max-width: 1200px;">
             <div style="display: flex; align-items: center;">
                 <div style="flex: 2; text-align: right; padding-right: 15px;">
-                    <div class="currency-value" style="font-size: 16px; padding-top: 40px; color: #333;">{currency_symbol}{lower_converted:,.0f}</div>
+                    <div class="currency-value" style="font-size: 16px; padding-top: 40px; color: #333;">
+                        {curr_sym}{lb_disp:,.0f}
+                    </div>
                 </div>
                 <div style="flex: 8; position: relative;">
                     <div style="
@@ -417,7 +534,7 @@ with tabs[0]:
                                 z-index: 10;
                                 box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
                             ">
-                                {currency_symbol}{median_converted:,.0f}
+                                {curr_sym}{median_disp:,.0f}
                             </div>
                             <div class="prediction-marker" style="
                                 position: absolute;
@@ -434,7 +551,9 @@ with tabs[0]:
                     </div>
                 </div>
                 <div style="flex: 2; text-align: left; padding-left: 15px;">
-                    <div class="currency-value" style="font-size: 16px; padding-top: 40px; color: #333;">{currency_symbol}{upper_converted:,.0f}</div>
+                    <div class="currency-value" style="font-size: 16px; padding-top: 40px; color: #333;">
+                        {curr_sym}{ub_disp:,.0f}
+                    </div>
                 </div>
             </div>
         </div>
@@ -456,7 +575,7 @@ with tabs[0]:
             </div>
             <div style="font-size: 14px; color: #555; margin-bottom: 15px; text-align: center;">
                 {interval_size_description} 
-                Interval width: <span class="currency-value" style="color: #00A651;">{currency_symbol}{interval_width:,.0f}</span>
+                Interval width: <span class="currency-value" style="color: #00A651;">{curr_sym}{interval_width:,.0f}</span>
             </div>
             <div style="display: flex; justify-content: center; background-color: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
                 <div style="margin-right: 30px;">
